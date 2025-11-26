@@ -25,18 +25,29 @@ const generateSentencePairs = async (sourceText: string): Promise<SlideContent[]
     You are an expert content formatter for language learning slides.
     Your task is to take the user's input and output a list of English sentences paired with their Chinese translations.
     
+    CRITICAL RULE FOR COLOR MATCHING:
+    You must break down each sentence into corresponding segments (meaning units) so that the English phrase matches the Chinese phrase.
+    Example: 
+    Input: "I like apples."
+    Output segments: [
+      { "en": "I", "cn": "我" },
+      { "en": "like", "cn": "喜欢" },
+      { "en": "apples", "cn": "苹果" }
+    ]
+    
     Rules:
-    1. Each item must contain exactly one English sentence and its Chinese translation.
-    2. If the user provides a topic (e.g., "At the airport"), generate useful conversational sentences about that topic.
-    3. If the user provides raw text, split it into logical sentence pairs and translate if necessary.
-    4. Keep sentences concise enough to fit on a slide (max 10-15 words ideal).
+    1. If the user provides a topic, generate useful conversational sentences about that topic.
+    2. If the user provides raw text, split it into logical sentence pairs and segment them.
+    3. Keep sentences concise enough to fit on a slide (max 10-15 words ideal).
+    4. PRESERVE SPEAKER NAMES: If the input contains speaker names (e.g. "Alice:", "Bob:"), DO NOT REMOVE THEM. You MUST include the speaker name as the first segment.
+       Example: { "en": "Alice:", "cn": "爱丽丝：" }
   `;
 
   const prompt = `
     Input Source:
     "${sourceText}"
 
-    Generate a list of objects with "english" and "chinese" fields.
+    Generate a list of objects. Each object must have a "segments" array containing {en, cn} pairs.
   `;
 
   const response = await ai.models.generateContent({
@@ -50,10 +61,19 @@ const generateSentencePairs = async (sourceText: string): Promise<SlideContent[]
         items: {
           type: Type.OBJECT,
           properties: {
-            english: { type: Type.STRING },
-            chinese: { type: Type.STRING },
+            segments: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  en: { type: Type.STRING },
+                  cn: { type: Type.STRING },
+                },
+                required: ["en", "cn"],
+              },
+            },
           },
-          required: ["english", "chinese"],
+          required: ["segments"],
         },
       },
     },
@@ -69,10 +89,10 @@ const generateWordContent = async (sourceText: string): Promise<WordSlideContent
     You are an English teacher creating vocabulary slides for BEGINNER/ELEMENTARY students.
     For each word provided by the user:
     1. Identify the word.
-    2. Create TWO distinct example sentences (Example 1 and Example 2).
-    3. Provide the Chinese translation for each example sentence.
-    4. CRITICAL: The example sentences MUST use very simple, high-frequency elementary vocabulary (CEFR A1/A2 level). Avoid complex grammar or difficult synonyms. Keep sentences relatively short.
-    5. Ensure the sentences clearly demonstrate the meaning of the target word in a simple context suitable for children or beginners.
+    2. Create TWO distinct example sentences.
+    3. CRITICAL: For each sentence, break it down into word-for-word or phrase-for-phrase segments mapping English to Chinese. 
+       This is for color-coded learning (e.g. "The cat" -> "这只猫", "is" -> "是", "cute" -> "可爱的").
+    4. The example sentences MUST use very simple, high-frequency elementary vocabulary (CEFR A1/A2 level). 
   `;
 
   const prompt = `
@@ -81,10 +101,10 @@ const generateWordContent = async (sourceText: string): Promise<WordSlideContent
 
     Generate a list of objects. Each object represents one word and includes:
     - "word": The target word (Title Case)
-    - "ex1_english": Example sentence 1 in English (Simple A1/A2 level)
-    - "ex1_chinese": Translation of example 1
-    - "ex2_english": Example sentence 2 in English (Simple A1/A2 level)
-    - "ex2_chinese": Translation of example 2
+    - "ex1_segments": Array of {en: string, cn: string} objects for the first sentence.
+    - "ex2_segments": Array of {en: string, cn: string} objects for the second sentence.
+    
+    Make sure the 'en' and 'cn' segments correspond in meaning so they can be colored identically.
   `;
 
   const response = await ai.models.generateContent({
@@ -99,12 +119,30 @@ const generateWordContent = async (sourceText: string): Promise<WordSlideContent
           type: Type.OBJECT,
           properties: {
             word: { type: Type.STRING },
-            ex1_english: { type: Type.STRING },
-            ex1_chinese: { type: Type.STRING },
-            ex2_english: { type: Type.STRING },
-            ex2_chinese: { type: Type.STRING },
+            ex1_segments: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  en: { type: Type.STRING },
+                  cn: { type: Type.STRING }
+                },
+                required: ["en", "cn"]
+              }
+            },
+            ex2_segments: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  en: { type: Type.STRING },
+                  cn: { type: Type.STRING }
+                },
+                required: ["en", "cn"]
+              }
+            }
           },
-          required: ["word", "ex1_english", "ex1_chinese", "ex2_english", "ex2_chinese"],
+          required: ["word", "ex1_segments", "ex2_segments"],
         },
       },
     },

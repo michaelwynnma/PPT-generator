@@ -1,6 +1,6 @@
 
 import PptxGenJS from "pptxgenjs";
-import { SlideContent, WordSlideContent, WordCardGridSlide, GeneratedFile, AppMode } from "../types";
+import { SlideContent, WordSlideContent, WordCardGridSlide, GeneratedFile, AppMode, WordExampleSegment } from "../types";
 
 // --- SHARED CONSTANTS ---
 const PAGE_WIDTH_CM = 32.15;
@@ -59,27 +59,46 @@ const addSentenceSlidesToPres = (pres: PptxGenJS, slides: SlideContent[]) => {
     const slide = pres.addSlide();
     slide.background = { color: "FFFFFF" };
 
-    const englishWords = slideData.english.split(' ');
-    const englishTextObjects = englishWords.map((word) => ({
-      text: word + " ",
+    // Prepare colored segments
+    const coloredSegments = slideData.segments.map(seg => ({
+      en: seg.en + " ", // Add space to English words
+      cn: seg.cn,
+      color: getRandomColor(SENTENCE_COLOR_POOL)
+    }));
+
+    // Construct English Text Objects
+    const englishTextObjects = coloredSegments.map(seg => ({
+      text: seg.en,
       options: {
         fontSize: 80,
         fontFace: "Arial Black",
         bold: true,
-        color: getRandomColor(SENTENCE_COLOR_POOL),
+        color: seg.color,
         breakLine: false,
       }
     }));
 
+    // Construct Chinese Text Objects
+    const chineseTextObjects = coloredSegments.map(seg => ({
+      text: seg.cn,
+      options: {
+        fontSize: 80,
+        fontFace: "Microsoft YaHei",
+        bold: true,
+        color: seg.color,
+        breakLine: false,
+      }
+    }));
+
+    // Add English Block
     slide.addText(englishTextObjects, {
       x: marginIn, y: englishY, w: safeWidth, h: englishH,
       align: "left", valign: "top", autoFit: false, wrap: true, margin: 0,
     });
 
-    slide.addText(slideData.chinese, {
+    // Add Chinese Block
+    slide.addText(chineseTextObjects, {
       x: marginIn, y: chineseY, w: safeWidth, h: chineseH,
-      fontSize: 80, fontFace: "Microsoft YaHei", bold: true,
-      color: getRandomColor(SENTENCE_COLOR_POOL),
       align: "left", valign: "top", autoFit: false, wrap: true, margin: 0,
     });
   });
@@ -101,6 +120,7 @@ const addWordSlidesToPres = (pres: PptxGenJS, slides: WordSlideContent[]) => {
     const slide = pres.addSlide();
     slide.background = { color: "FFFFFF" };
 
+    // Title
     slide.addText(slideData.word, {
       x: marginIn, y: titleY, w: safeWidth, h: cmToIn(3),
       fontSize: 80, fontFace: "Arial Black", bold: true,
@@ -108,43 +128,62 @@ const addWordSlidesToPres = (pres: PptxGenJS, slides: WordSlideContent[]) => {
       align: "left", valign: "top", autoFit: false, wrap: true, margin: 0,
     });
 
-    const ex1EngWords = slideData.ex1_english.split(' ').map(word => ({
-      text: word + " ",
-      options: {
-        fontSize: 80, fontFace: "Arial Black", bold: true,
-        color: getRandomColor(WORD_COLOR_POOL), breakLine: false
-      }
-    }));
-    slide.addText(ex1EngWords, {
-      x: marginIn, y: ex1EngY, w: safeWidth, h: textBoxHeight,
-      align: "left", valign: "top", autoFit: false, wrap: true, margin: 0,
-    });
+    // Helper to process segments into PptxGenJS Text Items
+    const createSegmentTextObjects = (segments: WordExampleSegment[], fontFace: string, isEnglish: boolean) => {
+      // 1. Assign a random color to each segment (same color for en and cn)
+      const coloredSegments = segments.map(seg => ({
+        ...seg,
+        color: getRandomColor(WORD_COLOR_POOL)
+      }));
 
-    slide.addText(slideData.ex1_chinese, {
-      x: marginIn, y: ex1ChiY, w: safeWidth, h: textBoxHeight,
-      fontSize: 80, fontFace: "Microsoft YaHei", bold: true,
-      color: getRandomColor(WORD_COLOR_POOL),
-      align: "left", valign: "top", autoFit: false, wrap: true, margin: 0,
-    });
+      // 2. Create text objects
+      return coloredSegments.map(seg => ({
+        text: (isEnglish ? seg.en : seg.cn) + (isEnglish ? " " : ""), // Add space for English
+        options: {
+          fontSize: 80, 
+          fontFace: fontFace, 
+          bold: true,
+          color: seg.color, 
+          breakLine: false
+        }
+      }));
+    };
 
-    const ex2EngWords = slideData.ex2_english.split(' ').map(word => ({
-      text: word + " ",
-      options: {
-        fontSize: 80, fontFace: "Arial Black", bold: true,
-        color: getRandomColor(WORD_COLOR_POOL), breakLine: false
-      }
-    }));
-    slide.addText(ex2EngWords, {
-      x: marginIn, y: ex2EngY, w: safeWidth, h: textBoxHeight,
-      align: "left", valign: "top", autoFit: false, wrap: true, margin: 0,
-    });
+    // Pre-calculate colored segments to ensure EN and CN match
+    // Note: We need to do this per example sentence to ensure mapping is correct
+    const processExample = (segments: WordExampleSegment[], engY: number, chiY: number) => {
+        const coloredData = segments.map(seg => ({
+            en: seg.en + " ",
+            cn: seg.cn,
+            color: getRandomColor(WORD_COLOR_POOL)
+        }));
 
-    slide.addText(slideData.ex2_chinese, {
-      x: marginIn, y: ex2ChiY, w: safeWidth, h: textBoxHeight,
-      fontSize: 80, fontFace: "Microsoft YaHei", bold: true,
-      color: getRandomColor(WORD_COLOR_POOL),
-      align: "left", valign: "top", autoFit: false, wrap: true, margin: 0,
-    });
+        const englishTextObjs = coloredData.map(d => ({
+            text: d.en,
+            options: { fontSize: 80, fontFace: "Arial Black", bold: true, color: d.color, breakLine: false }
+        }));
+
+        const chineseTextObjs = coloredData.map(d => ({
+            text: d.cn,
+            options: { fontSize: 80, fontFace: "Microsoft YaHei", bold: true, color: d.color, breakLine: false }
+        }));
+
+        slide.addText(englishTextObjs, {
+            x: marginIn, y: engY, w: safeWidth, h: textBoxHeight,
+            align: "left", valign: "top", autoFit: false, wrap: true, margin: 0,
+        });
+
+        slide.addText(chineseTextObjs, {
+            x: marginIn, y: chiY, w: safeWidth, h: textBoxHeight,
+            align: "left", valign: "top", autoFit: false, wrap: true, margin: 0,
+        });
+    };
+
+    // Example 1
+    processExample(slideData.ex1_segments, ex1EngY, ex1ChiY);
+
+    // Example 2
+    processExample(slideData.ex2_segments, ex2EngY, ex2ChiY);
   });
 };
 
@@ -169,7 +208,9 @@ const addWordCardSlidesToPres = (pres: PptxGenJS, slides: WordCardGridSlide[]) =
 
   // Vertical Spacing Logic
   // 80pt font is roughly 2.8cm tall.
-  const englishLineHeightCm = 2.8;
+  // User requested "Tight" spacing. 
+  // English starts at top. Phonetic starts roughly 2.8cm down.
+  const englishLineHeightCm = 2.8; 
   const phoneticOffsetY = cmToIn(englishLineHeightCm); 
 
   slides.forEach((slideData) => {
@@ -193,7 +234,7 @@ const addWordCardSlidesToPres = (pres: PptxGenJS, slides: WordCardGridSlide[]) =
         align: "left", valign: "top", autoFit: false, wrap: true, margin: 0
       });
 
-      // Phonetic (Below English)
+      // Phonetic (Below English - Tight)
       slide.addText(item.phonetic, {
         x: leftX, y: rowY + phoneticOffsetY, w: leftWidthIn - (colGapIn / 2), h: rowHeightIn - phoneticOffsetY,
         fontSize: 65, fontFace: "Arial", bold: true,

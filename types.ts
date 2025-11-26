@@ -1,15 +1,22 @@
 
+export interface SentenceSegment {
+  en: string;
+  cn: string;
+}
+
 export interface SlideContent {
-  english: string;
-  chinese: string;
+  segments: SentenceSegment[];
+}
+
+export interface WordExampleSegment {
+  en: string; // English word/phrase
+  cn: string; // Chinese correspondence
 }
 
 export interface WordSlideContent {
   word: string;
-  ex1_english: string;
-  ex1_chinese: string;
-  ex2_english: string;
-  ex2_chinese: string;
+  ex1_segments: WordExampleSegment[];
+  ex2_segments: WordExampleSegment[];
 }
 
 export interface WordCardItem {

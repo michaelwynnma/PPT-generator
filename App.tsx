@@ -16,6 +16,9 @@ const App: React.FC = () => {
   // History & Merge State
   const [history, setHistory] = useState<GeneratedFile[]>([]);
   const [selectedFileIds, setSelectedFileIds] = useState<Set<string>>(new Set());
+  
+  // Download Progress State
+  const [isDownloading, setIsDownloading] = useState(false);
 
   const handleGenerate = useCallback(async (config: GenerationConfig) => {
     setStatus(GenerationStatus.GENERATING);
@@ -48,7 +51,13 @@ const App: React.FC = () => {
 
   const handleDownload = useCallback(async () => {
     if (slides.length === 0) return;
+    
+    setIsDownloading(true);
+    
     try {
+      // Artificial delay to ensure UI updates and user sees the progress bar
+      await new Promise(resolve => setTimeout(resolve, 100));
+
       if (currentMode === AppMode.WORD_EXAMPLES) {
         const fileName = "PPT_例句_单词组名";
         await createWordPptFile(slides as WordSlideContent[], fileName);
@@ -62,6 +71,8 @@ const App: React.FC = () => {
     } catch (err) {
       console.error("Download error", err);
       alert("Failed to create PowerPoint file.");
+    } finally {
+      setIsDownloading(false);
     }
   }, [slides, currentMode]);
 
@@ -102,12 +113,19 @@ const App: React.FC = () => {
     const filesToMerge = history.filter(f => selectedFileIds.has(f.id)).reverse(); // Reverse to maintain chronological order if needed
     if (filesToMerge.length === 0) return;
 
+    setIsDownloading(true);
+
     try {
+      // Artificial delay
+      await new Promise(resolve => setTimeout(resolve, 100));
+
       const fileName = `Merged_PPT_${filesToMerge.length}_Files`;
       await createMergedPptFile(filesToMerge, fileName);
     } catch (err) {
       console.error("Merge error", err);
       alert("Failed to merge files.");
+    } finally {
+      setIsDownloading(false);
     }
   };
 
@@ -127,14 +145,16 @@ const App: React.FC = () => {
             <div className="flex gap-2">
                <button
                 onClick={handleReset}
-                className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors flex items-center gap-2"
+                disabled={isDownloading}
+                className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors flex items-center gap-2 disabled:opacity-50"
               >
                 <RefreshCw size={16} />
                 <span className="hidden sm:inline">New</span>
               </button>
               <button
                 onClick={handleDownload}
-                className="px-4 py-2 text-sm font-bold text-white bg-green-600 hover:bg-green-700 rounded-lg shadow-md shadow-green-100 transition-all flex items-center gap-2"
+                disabled={isDownloading}
+                className="px-4 py-2 text-sm font-bold text-white bg-green-600 hover:bg-green-700 rounded-lg shadow-md shadow-green-100 transition-all flex items-center gap-2 disabled:opacity-70 disabled:cursor-wait"
               >
                 <Download size={16} />
                 Download .pptx
@@ -221,9 +241,9 @@ const App: React.FC = () => {
                  </button>
                  <button
                    onClick={handleMergeDownload}
-                   disabled={selectedFileIds.size === 0}
+                   disabled={selectedFileIds.size === 0 || isDownloading}
                    className={`px-4 py-2 text-sm font-bold text-white rounded-lg shadow-md transition-all flex items-center gap-2 ${
-                     selectedFileIds.size === 0 
+                     selectedFileIds.size === 0 || isDownloading
                        ? 'bg-slate-300 cursor-not-allowed' 
                        : 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-100'
                    }`}
@@ -293,6 +313,37 @@ const App: React.FC = () => {
         )}
 
       </main>
+
+      {/* Download Progress Modal */}
+      {isDownloading && (
+        <div className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+          {/* Inline Styles for simple animation without config */}
+          <style>{`
+            @keyframes slide-progress {
+              0% { transform: translateX(-100%); }
+              100% { transform: translateX(300%); }
+            }
+          `}</style>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8 text-center animate-in fade-in zoom-in duration-200">
+            <div className="mx-auto bg-indigo-100 w-16 h-16 rounded-full flex items-center justify-center mb-6">
+              <Download className="text-indigo-600 animate-bounce" size={32} />
+            </div>
+            <h3 className="text-2xl font-bold text-slate-800 mb-2">Preparing Download</h3>
+            <p className="text-slate-500 mb-8">Generating your PowerPoint file...</p>
+            
+            {/* Progress Bar Container */}
+            <div className="w-full bg-slate-100 rounded-full h-4 overflow-hidden relative">
+              {/* Moving Gradient Bar */}
+               <div 
+                 className="absolute top-0 left-0 h-full bg-indigo-600 rounded-full w-1/3"
+                 style={{ animation: 'slide-progress 1.5s infinite linear' }}
+               ></div>
+            </div>
+            <p className="text-xs text-slate-400 mt-4">Please do not close this window</p>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };

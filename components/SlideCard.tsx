@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { SlideContent, WordSlideContent, WordCardGridSlide, WordCardItem, GeneratedContent } from '../types';
+import { SlideContent, WordSlideContent, WordCardGridSlide, WordCardItem, GeneratedContent, WordExampleSegment } from '../types';
 
 interface SlideCardProps {
   slide: GeneratedContent;
@@ -27,19 +27,25 @@ const getRandomColor = (pool: string[]) => {
 };
 
 const SentencePreview: React.FC<{ slide: SlideContent }> = ({ slide }) => {
-  const chineseColor = React.useMemo(() => getRandomColor(SENTENCE_COLORS), []);
+  // Memoize colored segments to ensure EN and CN colors match and don't change on re-render
+  const coloredSegments = React.useMemo(() => {
+    return slide.segments.map(seg => ({
+      ...seg,
+      color: getRandomColor(SENTENCE_COLORS)
+    }));
+  }, [slide.segments]);
   
   return (
     <div className="flex flex-col h-full">
       {/* English Section */}
       <div className="flex-1 flex content-start flex-wrap gap-x-2 overflow-hidden">
-          {slide.english.split(' ').map((word, i) => (
+          {coloredSegments.map((seg, i) => (
               <span 
                   key={i} 
-                  style={{ color: getRandomColor(SENTENCE_COLORS), fontFamily: '"Arial Black", sans-serif' }}
+                  style={{ color: seg.color, fontFamily: '"Arial Black", sans-serif' }}
                   className="text-2xl font-black leading-snug"
               >
-                  {word}
+                  {seg.en}
               </span>
           ))}
       </div>
@@ -48,33 +54,33 @@ const SentencePreview: React.FC<{ slide: SlideContent }> = ({ slide }) => {
       <div className="h-[4.5%] w-full min-h-4"></div>
 
       {/* Chinese Section */}
-      <div className="flex-1 overflow-hidden">
-          <p 
-              style={{ color: chineseColor, fontFamily: '"Microsoft YaHei", sans-serif' }}
-              className="text-2xl font-bold leading-snug"
-          >
-              {slide.chinese}
-          </p>
+      <div className="flex-1 overflow-hidden flex flex-wrap content-start gap-x-0">
+          {coloredSegments.map((seg, i) => (
+              <span 
+                  key={i} 
+                  style={{ color: seg.color, fontFamily: '"Microsoft YaHei", sans-serif' }}
+                  className="text-2xl font-bold leading-snug"
+              >
+                  {seg.cn}
+              </span>
+          ))}
       </div>
     </div>
   );
 };
 
 const WordPreview: React.FC<{ slide: WordSlideContent }> = ({ slide }) => {
-  // Memoize single colors to prevent flicker on re-render
+  // Memoize title color
   const titleColor = React.useMemo(() => getRandomColor(WORD_COLORS), []);
-  const ex1ChiColor = React.useMemo(() => getRandomColor(WORD_COLORS), []);
-  const ex2ChiColor = React.useMemo(() => getRandomColor(WORD_COLORS), []);
+  
+  // Memoize colored segments to prevent flicker and ensure matching colors
+  const ex1ColoredSegments = React.useMemo(() => {
+    return slide.ex1_segments.map(seg => ({ ...seg, color: getRandomColor(WORD_COLORS) }));
+  }, [slide.ex1_segments]);
 
-  const WordSpan = ({ text }: { text: string }) => (
-     <span className="flex flex-wrap gap-x-1">
-       {text.split(' ').map((word, i) => (
-          <span key={i} style={{ color: getRandomColor(WORD_COLORS), fontFamily: '"Arial Black", sans-serif' }}>
-            {word}
-          </span>
-       ))}
-     </span>
-  );
+  const ex2ColoredSegments = React.useMemo(() => {
+    return slide.ex2_segments.map(seg => ({ ...seg, color: getRandomColor(WORD_COLORS) }));
+  }, [slide.ex2_segments]);
 
   return (
     <div className="relative h-full w-full text-sm sm:text-base overflow-hidden select-none pointer-events-none">
@@ -87,23 +93,39 @@ const WordPreview: React.FC<{ slide: WordSlideContent }> = ({ slide }) => {
       </div>
 
       {/* Ex 1 English */}
-      <div className="absolute top-[25%] left-0 w-full font-black leading-tight">
-         <WordSpan text={slide.ex1_english} />
+      <div className="absolute top-[25%] left-0 w-full font-black leading-tight flex flex-wrap gap-x-1">
+         {ex1ColoredSegments.map((seg, i) => (
+            <span key={i} style={{ color: seg.color, fontFamily: '"Arial Black", sans-serif' }}>
+              {seg.en}
+            </span>
+         ))}
       </div>
 
       {/* Ex 1 Chinese */}
-      <div className="absolute top-[36%] left-0 w-full font-bold leading-tight" style={{ color: ex1ChiColor, fontFamily: '"Microsoft YaHei", sans-serif' }}>
-         {slide.ex1_chinese}
+      <div className="absolute top-[36%] left-0 w-full font-bold leading-tight flex flex-wrap gap-x-0">
+         {ex1ColoredSegments.map((seg, i) => (
+            <span key={i} style={{ color: seg.color, fontFamily: '"Microsoft YaHei", sans-serif' }}>
+              {seg.cn}
+            </span>
+         ))}
       </div>
 
       {/* Ex 2 English */}
-      <div className="absolute top-[63%] left-0 w-full font-black leading-tight">
-        <WordSpan text={slide.ex2_english} />
+      <div className="absolute top-[63%] left-0 w-full font-black leading-tight flex flex-wrap gap-x-1">
+        {ex2ColoredSegments.map((seg, i) => (
+            <span key={i} style={{ color: seg.color, fontFamily: '"Arial Black", sans-serif' }}>
+              {seg.en}
+            </span>
+         ))}
       </div>
 
       {/* Ex 2 Chinese */}
-      <div className="absolute top-[74%] left-0 w-full font-bold leading-tight" style={{ color: ex2ChiColor, fontFamily: '"Microsoft YaHei", sans-serif' }}>
-        {slide.ex2_chinese}
+      <div className="absolute top-[74%] left-0 w-full font-bold leading-tight flex flex-wrap gap-x-0">
+        {ex2ColoredSegments.map((seg, i) => (
+            <span key={i} style={{ color: seg.color, fontFamily: '"Microsoft YaHei", sans-serif' }}>
+              {seg.cn}
+            </span>
+         ))}
       </div>
 
     </div>
@@ -116,17 +138,17 @@ const GridPreview: React.FC<{ slide: WordCardGridSlide }> = ({ slide }) => {
     return (
       <div key={index} className="flex h-full overflow-hidden p-1 gap-2 border-b border-slate-100 last:border-0">
           {/* Left Column: English + Phonetic (65%) */}
-          <div className="w-[65%] flex flex-col justify-start pt-1">
+          <div className="w-[65%] flex flex-col justify-start pt-1 gap-0">
              {/* English (Fixed Black) */}
              <div className="flex-none">
-               <span style={{ color: '#000000', fontFamily: '"Arial Black", sans-serif' }} className="text-3xl sm:text-4xl font-black leading-none break-words block">
+               <span style={{ color: '#000000', fontFamily: '"Arial Black", sans-serif' }} className="text-4xl font-black leading-none break-words block">
                  {item.english}
                </span>
              </div>
              
              {/* Phonetic (Fixed Gray) */}
-             <div className="flex-none mt-[-4px]">
-               <span style={{ color: '#808080', fontFamily: 'Arial, sans-serif' }} className="text-xl sm:text-2xl font-bold leading-none block">
+             <div className="flex-none">
+               <span style={{ color: '#808080', fontFamily: 'Arial, sans-serif' }} className="text-2xl font-bold leading-none block">
                  {item.phonetic}
                </span>
              </div>
@@ -134,7 +156,7 @@ const GridPreview: React.FC<{ slide: WordCardGridSlide }> = ({ slide }) => {
           
           {/* Right Column: Chinese (35%) - Fixed Blue */}
           <div className="w-[35%] pt-1 flex justify-start">
-             <span style={{ color: '#0070C0', fontFamily: '"Microsoft YaHei", sans-serif' }} className="text-3xl sm:text-4xl font-bold leading-none block break-words">
+             <span style={{ color: '#0070C0', fontFamily: '"Microsoft YaHei", sans-serif' }} className="text-4xl font-bold leading-none block break-words">
                 {item.chinese}
              </span>
           </div>

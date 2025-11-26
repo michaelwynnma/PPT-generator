@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { GenerationConfig, AppMode } from '../types';
 import { Sparkles, MessageSquare, BookOpen, Grid } from 'lucide-react';
 
@@ -11,6 +10,27 @@ interface InputFormProps {
 export const InputForm: React.FC<InputFormProps> = ({ onSubmit, isGenerating }) => {
   const [sourceText, setSourceText] = useState('');
   const [mode, setMode] = useState<AppMode>(AppMode.SENTENCE_PAIRS);
+  const [progress, setProgress] = useState(0);
+
+  // Simulate progress when generating
+  useEffect(() => {
+    let interval: ReturnType<typeof setInterval>;
+    if (isGenerating) {
+      setProgress(0);
+      interval = setInterval(() => {
+        setProgress((prev) => {
+          // Fast at first, slows down as it approaches 95%
+          if (prev >= 95) return 95;
+          const remaining = 95 - prev;
+          const increment = Math.max(0.5, remaining * 0.1); 
+          return prev + increment;
+        });
+      }, 200);
+    } else {
+      setProgress(0);
+    }
+    return () => clearInterval(interval);
+  }, [isGenerating]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -93,23 +113,36 @@ export const InputForm: React.FC<InputFormProps> = ({ onSubmit, isGenerating }) 
         <button
           type="submit"
           disabled={isGenerating || !sourceText.trim()}
-          className={`w-full py-4 rounded-xl font-bold text-xl flex items-center justify-center gap-3 transition-all transform active:scale-[0.99] ${
-            isGenerating || !sourceText.trim()
-              ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
-              : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-200'
+          className={`relative w-full py-4 rounded-xl font-bold text-xl flex items-center justify-center overflow-hidden transition-all transform active:scale-[0.99] ${
+            isGenerating
+              ? 'bg-slate-100 text-indigo-700 cursor-wait border border-slate-200'
+              : !sourceText.trim()
+                ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-200'
           }`}
         >
-          {isGenerating ? (
-            <>
-              <Sparkles className="animate-spin" size={24} />
-              Processing...
-            </>
-          ) : (
-            <>
-              <Sparkles size={24} />
-              Generate
-            </>
+          {/* Progress Bar Background */}
+          {isGenerating && (
+            <div 
+              className="absolute left-0 top-0 bottom-0 bg-indigo-200 transition-all duration-200 ease-linear"
+              style={{ width: `${progress}%` }}
+            />
           )}
+
+          {/* Button Content */}
+          <span className="relative z-10 flex items-center gap-3">
+            {isGenerating ? (
+              <>
+                <Sparkles className="animate-spin" size={24} />
+                Processing... {Math.round(progress)}%
+              </>
+            ) : (
+              <>
+                <Sparkles size={24} />
+                Generate
+              </>
+            )}
+          </span>
         </button>
       </form>
     </div>
